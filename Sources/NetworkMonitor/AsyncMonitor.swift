@@ -2,8 +2,6 @@ import Network
 
 @available(iOS 13.0, *)
 public struct AsyncMonitor {
-    static private let queue = DispatchQueue.global(qos: .utility)
-    
     static public let isNetworkReachable: AsyncStream<Bool> = AsyncStream { continuation in
         let monitor = NWPathMonitor()
         
@@ -18,6 +16,6 @@ public struct AsyncMonitor {
             monitor.cancel()
         }
         
-        monitor.start(queue: queue)
+        monitor.start(queue: DispatchQueue.global(qos: .utility))
     }
 }
