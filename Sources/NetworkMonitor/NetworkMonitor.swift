@@ -13,12 +13,8 @@ public class NetworkMonitor {
     /// Bool value indicating on is network connection established and ready to use
     public private(set) var isNetworkReachable: Bool = false
     
-    private var observers = NSMapTable<AnyObject, ActionWrapper>(
-        keyOptions: [.weakMemory],
-        valueOptions: [.weakMemory]
-    )
-    
     private let monitor: NWPathMonitor
+    @AtomicProperty private var observers = Set<NetworkToken>()
     
     private init() {
         self.monitor = NWPathMonitor()
@@ -42,37 +38,43 @@ public class NetworkMonitor {
         }
     }
     
-    public func addObserver(
-        _ object: AnyObject,
-        skipFirst: Bool = false,
-        closure: @escaping (_ isNetworkReachable: Bool) -> Void
-    ) {
-        let wrapper = ActionWrapper(closure)
-        let reference = "observer\(UUID().uuidString)".replacingOccurrences(of: "-", with: "")
-        observers.setObject(wrapper, forKey: object)
-
-        // Giving the closure back to the object that is observing
-        // Allows ClosureWrapper to die at the same time as observing object
-        objc_setAssociatedObject(object, reference, wrapper, .OBJC_ASSOCIATION_RETAIN_NONATOMIC)
-        if !skipFirst {
-            closure(self.isNetworkReachable)
+    public func observeNetworkChanges(
+        skipInitial: Bool = false,
+        actions: @escaping (_ isNetworkReachable: Bool) -> Void
+    ) -> NetworkToken {
+        let wrapper = NetworkToken(for: actions)
+        _observers.mutate {
+            $0.insert(wrapper)
+        }
+        
+        if !skipInitial {
+            actions(self.isNetworkReachable)
+        }
+        
+        return wrapper
+    }
+    
+    public func removeObserver(for token: NetworkToken?) {
+        guard let token = token else { return }
+        
+        _observers.mutate {
+            $0.remove(token)
         }
     }
     
     // MARK: Private Methods
     
     private func notify(isNetworkReachable: Bool) {
-        let enumerator = observers.objectEnumerator()
-        while let wrapper = enumerator?.nextObject() {
-            (wrapper as? ActionWrapper)?.closure(isNetworkReachable)
+        _observers.wrappedValue.forEach { observer in
+            observer.actions(isNetworkReachable)
         }
     }
 }
 
-fileprivate class ActionWrapper {
-    var closure: (Bool) -> Void
+public class NetworkToken: NSObject {
+    var actions: (Bool) -> Void
     
-    public init(_ closure: @escaping (Bool) -> Void) {
-        self.closure = closure
+    init(for actions: @escaping (Bool) -> Void) {
+        self.actions = actions
     }
 }
