@@ -4,7 +4,7 @@ import Foundation
 class AtomicProperty<Value> {
     private var value: Value
     private let queue = DispatchQueue(
-        label: "networkmonitor.atomicproperty\(String(describing: Value.self))"
+        label: "networkmonitor.atomic-property\(String(describing: Value.self))"
     )
     
     var wrappedValue: Value {

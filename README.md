@@ -1,3 +1,3 @@
 # NetworkMonitor
 
-A description of this package.
+Swift wrapper over Apple NWPathMonitor from Network framework.
